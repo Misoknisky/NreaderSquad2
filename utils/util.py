@@ -62,16 +62,16 @@ def get_dataset(record_file, parser, config):
 def convert_tokens(eval_file, qa_id, pp1, pp2,im_possible):
     answer_dict = {}
     remapped_dict = {}
-    for qid, p1, p2 in zip(qa_id, pp1, pp2):
+    for qid, p1, p2,possible in zip(qa_id, pp1, pp2,im_possible):
         context = eval_file[str(qid)]["context"]
         spans = eval_file[str(qid)]["spans"]
         uuid = eval_file[str(qid)]["uuid"]
         start_idx = spans[p1][0]
         end_idx = spans[p2][1]
-        if im_possible==1:
+        if possible==1:
             answer_dict[str(qid)] =""
             remapped_dict[uuid] =""
-        elif im_possible==0:
+        elif possible==0:
             answer_dict[str(qid)] = context[start_idx: end_idx]
             remapped_dict[uuid] = context[start_idx: end_idx]
     return answer_dict, remapped_dict

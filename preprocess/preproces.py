@@ -40,6 +40,7 @@ def process_file(filename, data_type, word_counter, char_counter):
     examples = []
     eval_examples = {}
     total = 0
+    filter_num=0
     with open(filename, "r") as fh:
         source = json.load(fh)
         for article in tqdm(source["data"]):#只有一个data字段,存放所有的数据,对应多个paragraphs
@@ -83,10 +84,14 @@ def process_file(filename, data_type, word_counter, char_counter):
                     if is_impossible:
                         answer_texts=list()
                         answer_texts.append("")
+                    if len(y1s) == 0 and len(y2s) == 0:
+                        filter_num =filter_num+1
+                        continue
                     example = {"context_tokens": context_tokens, "context_chars": context_chars, "ques_tokens": ques_tokens,"ques_chars": ques_chars, "y1s": y1s, "y2s": y2s, "id": total,"is_impossible":get_impossible(is_impossible)}
                     examples.append(example)
                     eval_examples[str(total)] = {"context": context, "spans": spans, "answers": answer_texts, "uuid": qa["id"]}
         random.shuffle(examples)
+        print("filter isntances is {}".format(filter_num))
         print("{} questions in total".format(len(examples)))
     return examples, eval_examples
 
@@ -178,12 +183,8 @@ def build_features(config, examples, data_type, out_file, word2idx_dict, char2id
                 if j == char_limit:
                     break
                 ques_char_idxs[i, j] = _get_char(char)
-
         start, end = example["y1s"][-1], example["y2s"][-1]
-        if start < 0 and end < 0:
-            pass
-        else:
-            y1[start], y2[end] = 1.0, 1.0
+        y1[start], y2[end] = 1.0, 1.0
         record = tf.train.Example(features=tf.train.Features(feature={
                                   "context_idxs": tf.train.Feature(bytes_list=tf.train.BytesList(value=[context_idxs.tostring()])),
                                   "ques_idxs": tf.train.Feature(bytes_list=tf.train.BytesList(value=[ques_idxs.tostring()])),

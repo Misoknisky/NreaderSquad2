@@ -167,6 +167,7 @@ class BIDAF(object):
             self.yp1 = tf.argmax(tf.reduce_max(outer, axis=2), axis=1)
             self.yp2 = tf.argmax(tf.reduce_max(outer, axis=1), axis=1)
             self.pre_impossible=tf.argmax(score,axis=-1)
+            print(self.pre_impossible)
             losses = tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits1, labels=tf.stop_gradient(self.y1))
             losses2 = tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits2, labels=tf.stop_gradient(self.y2))
             losses3=tf.nn.softmax_cross_entropy_with_logits_v2(logits=score, labels=tf.stop_gradient(self.impossible))

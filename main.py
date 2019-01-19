@@ -97,7 +97,7 @@ def evaluate_batch(model, num_batches, eval_file, sess, data_type, handle, str_h
     losses = []
     accuracy=[]
     for _ in tqdm(range(1, num_batches + 1)):
-        qa_id, loss, yp1, yp2,impossible,acc= sess.run([model.qa_id, model.loss, model.yp1, model.yp2,model.pre_impossible,model.acc], feed_dict={handle: str_handle})
+        qa_id, loss, yp1, yp2,impossible,acc= sess.run([model.qa_id, model.loss, model.yp1, model.yp2,model.pre_impossible,model.acc],feed_dict={handle: str_handle})
         answer_dict_, _ = convert_tokens(eval_file, qa_id.tolist(), yp1.tolist(), yp2.tolist(),impossible)
         answer_dict.update(answer_dict_)
         losses.append(loss)
