@@ -80,6 +80,9 @@ def process_file(filename, data_type, word_counter, char_counter):
                         y1, y2 = answer_span[0], answer_span[-1]
                         y1s.append(y1)
                         y2s.append(y2)
+                    if is_impossible:
+                        answer_texts=list()
+                        answer_texts.append("")
                     example = {"context_tokens": context_tokens, "context_chars": context_chars, "ques_tokens": ques_tokens,"ques_chars": ques_chars, "y1s": y1s, "y2s": y2s, "id": total,"is_impossible":get_impossible(is_impossible)}
                     examples.append(example)
                     eval_examples[str(total)] = {"context": context, "spans": spans, "answers": answer_texts, "uuid": qa["id"]}

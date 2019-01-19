@@ -59,7 +59,7 @@ def get_dataset(record_file, parser, config):
     return dataset
 
 
-def convert_tokens(eval_file, qa_id, pp1, pp2):
+def convert_tokens(eval_file, qa_id, pp1, pp2,im_possible):
     answer_dict = {}
     remapped_dict = {}
     for qid, p1, p2 in zip(qa_id, pp1, pp2):
@@ -68,11 +68,10 @@ def convert_tokens(eval_file, qa_id, pp1, pp2):
         uuid = eval_file[str(qid)]["uuid"]
         start_idx = spans[p1][0]
         end_idx = spans[p2][1]
-        answer=context[start_idx: end_idx]
-        if answer=="no answer":
+        if im_possible==1:
             answer_dict[str(qid)] =""
             remapped_dict[uuid] =""
-        else:
+        elif im_possible==0:
             answer_dict[str(qid)] = context[start_idx: end_idx]
             remapped_dict[uuid] = context[start_idx: end_idx]
     return answer_dict, remapped_dict
@@ -111,14 +110,16 @@ def get_tokens(s):
     if not s: return []
     return normalize_answer(s).split()
 def f1_score(prediction, ground_truth):
-    prediction_tokens = normalize_answer(prediction).split()
-    ground_truth_tokens = normalize_answer(ground_truth).split()
-    common = Counter(prediction_tokens) & Counter(ground_truth_tokens)
+    gold_toks = get_tokens(ground_truth)
+    pred_toks = get_tokens(prediction)
+    common = Counter(gold_toks) & Counter(pred_toks)
     num_same = sum(common.values())
+    if len(gold_toks) == 0 or len(pred_toks) == 0:
+        return int(gold_toks == pred_toks)
     if num_same == 0:
         return 0
-    precision = 1.0 * num_same / len(prediction_tokens)
-    recall = 1.0 * num_same / len(ground_truth_tokens)
+    precision = 1.0 * num_same / len(pred_toks)
+    recall = 1.0 * num_same / len(gold_toks)
     f1 = (2 * precision * recall) / (precision + recall)
     return f1
 def exact_match_score(prediction, ground_truth):

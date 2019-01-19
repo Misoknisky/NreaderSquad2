@@ -121,6 +121,15 @@ class BIDAF(object):
                 q_emb = tf.nn.embedding_lookup(self.word_mat, self.q)
             c_emb = tf.concat([c_emb, ch_emb], axis=2)
             q_emb = tf.concat([q_emb, qh_emb], axis=2)
+        with tf.variable_scope("extract_info"):
+            dim=2*dg + config.glove_dim
+            weight=tf.get_variable(name="extract_q_info", shape=[dim,dim])
+            att=tf.nn.softmax(tf.einsum("bpd,bqd->bpq",tf.einsum("bpd,dt->bpt",c_emb,weight),q_emb),axis=-1)#bpq
+            Dc=tf.reduce_sum(tf.einsum("bpq,bqd->bpqd",att,q_emb),axis=2)#bpd
+            att_=tf.transpose(att, perm=[0,2,1])
+            Qc=tf.reduce_sum(tf.einsum("bqp,bpd->bqpd",att_,c_emb),axis=2)#bqd
+            c_emb=tf.concat(values=[c_emb,Dc],axis=-1)
+            q_emb=tf.concat(values=[q_emb,Qc],axis=-1)
         with tf.variable_scope("passage_encoding"):
             c,_=rnn('bi-gru',c_emb, self.c_len,d)
             c=self.highway(c_emb,c, units=2 * d, scope="gate_context")
@@ -130,6 +139,14 @@ class BIDAF(object):
         with tf.variable_scope("gate"):
             c=dropout(c, keep_prob=config.keep_prob, is_train=self.is_train)
             q=dropout(q, keep_prob=config.keep_prob, is_train=self.is_train)
+        with tf.variable_scope("impossible"):
+            weight=tf.get_variable(name="weight_im", shape=[2*d])
+            att_q=tf.nn.softmax(tf.einsum("bqd,d->bq",q,weight),axis=-1)
+            q_enc=tf.reduce_sum(tf.einsum("bqd,bq->bqd",q,att_q),axis=1)#bd
+            weight_2=tf.get_variable(name="weight_2", shape=[2*d,2*d,2*d])
+            h=tf.reduce_max(tf.einsum("bptd,bd->bpt",tf.einsum("bpd,dtm->bptm",c,weight_2),q_enc),axis=1)#bd
+            weight_3=tf.get_variable(name="weight_3",shape=[2*d,2])
+            score=tf.einsum("bd,dt->bt",h,weight_3)
         with tf.variable_scope("match"):
             match_layer = AttentionFlowMatchLayer(d)
             match_p_encodes, _ = match_layer.match(c,q)
@@ -149,9 +166,13 @@ class BIDAF(object):
             outer = tf.matmul(tf.expand_dims(tf.nn.softmax(logits1), axis=2),tf.expand_dims(tf.nn.softmax(logits2), axis=1))
             self.yp1 = tf.argmax(tf.reduce_max(outer, axis=2), axis=1)
             self.yp2 = tf.argmax(tf.reduce_max(outer, axis=1), axis=1)
+            self.pre_impossible=tf.argmax(score,axis=-1)
             losses = tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits1, labels=tf.stop_gradient(self.y1))
             losses2 = tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits2, labels=tf.stop_gradient(self.y2))
-            self.loss = tf.reduce_mean(losses + losses2)
+            losses3=tf.nn.softmax_cross_entropy_with_logits_v2(logits=score, labels=tf.stop_gradient(self.impossible))
+            self.loss = tf.reduce_mean(losses + losses2)+0.5 * tf.reduce_mean(losses3)
+        with tf.variable_scope("accuracy"):
+            self.acc=tf.reduce_mean(tf.cast(tf.equal(self.pre_impossible,tf.argmax(self.impossible,axis=-1)),tf.float32))
     def get_loss(self):
         return self.loss
     def get_global_step(self):
